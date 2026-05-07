@@ -1,0 +1,23 @@
+{
+  "name": "Habit dashboard",
+  "short_name": "Habits",
+  "description": "Monthly habit grid and progress chart",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ebe4d8",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
