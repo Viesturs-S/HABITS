@@ -112,6 +112,16 @@ function HabitDashboard({
     setEditingId(null)
   }
 
+  const cancelEdit = () => setEditingId(null)
+
+  /** Square day cells: row height must match column width (habit label stays one row tall). */
+  const cellPx = 40
+
+  const closeDetailsMenu = (el: EventTarget | null) => {
+    const d = (el as HTMLElement | null)?.closest('details')
+    if (d) d.open = false
+  }
+
   return (
     <div className="space-y-8">
       <header className="space-y-2">
@@ -144,15 +154,53 @@ function HabitDashboard({
         </button>
       </div>
 
+      {editingId ? (
+        <div className="flex flex-col gap-2 rounded-2xl border border-amber-200/90 bg-amber-50/95 px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:gap-3">
+          <span className="shrink-0 text-sm font-medium text-stone-800">Rename habit</span>
+          <input
+            value={editDraft}
+            onChange={(e) => setEditDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitEdit()
+              if (e.key === 'Escape') cancelEdit()
+            }}
+            className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-inner"
+            maxLength={80}
+            autoFocus
+            aria-label="Habit name"
+          />
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={commitEdit}
+              className="rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-900"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-800 shadow-sm hover:bg-stone-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-3xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
-        <HabitProgressChart dailyTotals={dailyTotals} maxHabits={state.habits.length} />
+        <HabitProgressChart
+          dailyTotals={dailyTotals}
+          maxHabits={state.habits.length}
+          periodLabel={`${MONTH_NAMES[cursor.m]} ${cursor.y}`}
+        />
       </div>
 
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-stone-800">Month grid</h2>
         <p className="text-xs text-stone-500">
-          One row per habit, one square per day. Tap a square to mark it — layout is a single heatmap-style
-          grid (not a list of checkbox rows).
+          One row per habit. Each day is a fixed square ({cellPx}×{cellPx}px); tap to mark done. Use the ⋮
+          menu to rename or remove a habit.
         </p>
         <div className="overflow-x-auto rounded-xl border border-stone-200 bg-stone-300 p-px shadow-sm [-webkit-overflow-scrolling:touch]">
           <div
@@ -160,16 +208,20 @@ function HabitDashboard({
             aria-label={`Habits for ${MONTH_NAMES[cursor.m]} ${cursor.y}`}
             className="inline-grid gap-px text-sm"
             style={{
-              gridTemplateColumns: `minmax(7.5rem, 11rem) repeat(${dayCols.length}, minmax(1.75rem, 2rem))`,
+              gridTemplateColumns: `minmax(9rem, 11rem) repeat(${dayCols.length}, ${cellPx}px)`,
             }}
           >
-            <div className="sticky left-0 z-20 bg-stone-100 px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-stone-500 sm:min-w-[9rem]">
+            <div
+              className="sticky left-0 z-20 flex h-10 items-center border-r border-transparent bg-stone-100 px-2 text-left text-[10px] font-semibold uppercase tracking-wide text-stone-500"
+              style={{ width: 'auto', minHeight: cellPx, boxSizing: 'border-box' }}
+            >
               Habit
             </div>
             {dayCols.map((d) => (
               <div
                 key={`h-${d}`}
-                className="bg-stone-100 py-2 text-center text-[10px] font-semibold tabular-nums text-stone-600"
+                className="flex h-10 items-center justify-center bg-stone-100 text-[10px] font-semibold tabular-nums text-stone-600"
+                style={{ width: cellPx, minWidth: cellPx, height: cellPx, boxSizing: 'border-box' }}
               >
                 {d}
               </div>
@@ -185,76 +237,74 @@ function HabitDashboard({
             ) : (
               state.habits.map((h) => (
                 <Fragment key={h.id}>
-                  <div className="sticky left-0 z-10 min-w-0 bg-[#faf8f5] px-2 py-1.5 sm:min-w-[9rem]">
-                    {editingId === h.id ? (
-                      <div className="flex flex-col gap-1">
-                        <input
-                          value={editDraft}
-                          onChange={(e) => setEditDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') commitEdit()
-                            if (e.key === 'Escape') setEditingId(null)
-                          }}
-                          className="w-full rounded border border-stone-200 px-1.5 py-1 text-xs text-stone-900"
-                          autoFocus
-                        />
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={commitEdit}
-                            className="rounded bg-teal-800 px-2 py-0.5 text-[10px] text-white"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="rounded border border-stone-200 px-2 py-0.5 text-[10px]"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
+                  <div
+                    className="sticky left-0 z-10 box-border flex items-center border-r border-stone-200/80 bg-[#faf8f5]"
+                    style={{
+                      minHeight: cellPx,
+                      height: cellPx,
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <details className="group/menu relative flex h-full w-full min-w-0 items-stretch">
+                      <summary className="flex h-full min-h-0 w-full min-w-0 cursor-pointer list-none items-center gap-1 px-2 marker:hidden [&::-webkit-details-marker]:hidden">
                         <span
-                          className="block truncate text-xs font-medium text-stone-900 sm:text-sm"
+                          className="min-w-0 flex-1 truncate text-left text-xs font-medium text-stone-900"
                           title={h.label}
                         >
                           {h.label}
                         </span>
-                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(h.id, h.label)}
-                            className="text-[10px] font-medium text-teal-900 underline decoration-teal-900/25"
-                          >
-                            Rename
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeHabit(h.id)}
-                            className="text-[10px] font-medium text-stone-500 underline decoration-stone-400/40"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </>
-                    )}
+                        <span
+                          className="shrink-0 rounded px-1 text-sm leading-none text-stone-400 hover:bg-stone-200/50 group-open/menu:bg-stone-200/60"
+                          aria-hidden
+                        >
+                          ⋮
+                        </span>
+                      </summary>
+                      <div
+                        className="absolute left-2 top-[calc(100%+4px)] z-30 w-36 rounded-lg border border-stone-200 bg-white py-1 text-left shadow-lg"
+                        onClick={(e) => closeDetailsMenu(e.target)}
+                      >
+                        <button
+                          type="button"
+                          className="block w-full px-3 py-2 text-left text-xs font-medium text-stone-800 hover:bg-stone-50"
+                          onClick={() => {
+                            startEdit(h.id, h.label)
+                          }}
+                        >
+                          Rename…
+                        </button>
+                        <button
+                          type="button"
+                          className="block w-full px-3 py-2 text-left text-xs font-medium text-red-800 hover:bg-red-50"
+                          onClick={() => removeHabit(h.id)}
+                        >
+                          Remove habit
+                        </button>
+                      </div>
+                    </details>
                   </div>
                   {dayCols.map((d) => {
                     const dateStr = buildDateStr(cursor.y, cursor.m, d)
                     const done = Boolean(state.completions[h.id]?.[dateStr])
                     return (
-                      <div key={d} className="min-h-8 bg-white">
+                      <div
+                        key={d}
+                        className="box-border bg-white"
+                        style={{
+                          width: cellPx,
+                          minWidth: cellPx,
+                          height: cellPx,
+                          minHeight: cellPx,
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={() => toggleCell(h.id, dateStr)}
                           aria-pressed={done}
                           title={`${h.label} — day ${d}${done ? ' — done' : ''}`}
                           className={[
-                            'flex h-full min-h-8 w-full items-center justify-center',
-                            'text-[10px] font-semibold transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800',
+                            'box-border flex size-full items-center justify-center',
+                            'text-[11px] font-semibold transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-800',
                             done ? 'bg-teal-600 text-white' : 'bg-white hover:bg-stone-100',
                           ].join(' ')}
                         >
