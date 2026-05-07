@@ -52,22 +52,22 @@ export function HabitProgressChart({
         </p>
       </div>
 
-      {hover !== null && n > 0 ? (
-        <p
-          className="mb-2 rounded-lg border border-teal-200/80 bg-teal-50/90 px-3 py-2 text-center text-xs font-medium text-teal-950 shadow-sm"
-          role="status"
+      <div className="relative pt-1">
+        {hover !== null && n > 0 ? (
+          <p
+            className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 w-[min(100%,22rem)] -translate-x-1/2 rounded-lg border border-teal-200/80 bg-teal-50/95 px-3 py-2 text-center text-xs font-medium text-teal-950 shadow-md backdrop-blur-[2px]"
+            role="status"
+          >
+            Day {hover + 1}: {dailyTotals[hover]} habit{dailyTotals[hover] === 1 ? '' : 's'} completed
+            {maxHabits ? ` (of ${maxHabits} tracked)` : ''}
+          </p>
+        ) : null}
+        <svg
+          className="relative z-0 w-full text-teal-800/90"
+          viewBox={`0 0 ${vbW} ${vbH}`}
+          role="img"
+          aria-label={`Bar chart of habits completed each day in ${periodLabel}`}
         >
-          Day {hover + 1}: {dailyTotals[hover]} habit{dailyTotals[hover] === 1 ? '' : 's'} completed
-          {maxHabits ? ` (of ${maxHabits} tracked)` : ''}
-        </p>
-      ) : null}
-
-      <svg
-        className="w-full text-teal-800/90"
-        viewBox={`0 0 ${vbW} ${vbH}`}
-        role="img"
-        aria-label={`Bar chart of habits completed each day in ${periodLabel}`}
-      >
         <title>Habits completed per day</title>
 
         {yTicks.map((tv) => {
@@ -155,6 +155,7 @@ export function HabitProgressChart({
           </text>
         ) : null}
       </svg>
+      </div>
     </div>
   )
 }
