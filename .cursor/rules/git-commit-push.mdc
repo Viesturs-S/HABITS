@@ -1,0 +1,13 @@
+---
+description: After substantive edits, commit and push to origin (unless the user says not to).
+alwaysApply: true
+---
+
+# Git: commit and push
+
+When you finish a task that changes project files:
+
+1. Run `npm run lint` and `npm run build` when the change touches code (match existing project conventions).
+2. **`git add`** the intended paths, **`git commit`** with a short imperative subject line, then **`git push origin main`** (or the current branch if not `main`).
+3. Do not leave fixes only on disk: if the user asked for a change, treat commit + push as part of delivery.
+4. Skip only if there is nothing to commit, the user explicitly says not to push, or there is no `origin` / network failure—in the last case, say so and leave clear instructions.
