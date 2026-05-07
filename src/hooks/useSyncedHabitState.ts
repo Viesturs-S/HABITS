@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchRemoteHabits, pushRemoteHabits } from '../lib/habitsSyncApi'
+import { getBuiltInSyncToken, getEffectiveSyncToken } from '../lib/syncToken'
 import {
   loadHabitTrackerFromStorage,
   loadSyncToken,
@@ -28,17 +29,38 @@ function pickNewer(a: HabitTrackerState, b: HabitTrackerState): HabitTrackerStat
   return ta >= tb ? a : b
 }
 
+function mergePull(prev: HabitTrackerState, remoteRaw: string): HabitTrackerState {
+  if (!remoteRaw || !remoteRaw.trim()) {
+    return prev
+  }
+  const remote = parseHabitTrackerState(remoteRaw)
+  if (!remote) return prev
+  return pickNewer(remote, prev)
+}
+
 export function useSyncedHabitState() {
-  const [syncToken, setSyncTokenState] = useState(loadSyncToken)
+  const [storedSyncToken, setStoredSyncToken] = useState(loadSyncToken)
   const [state, setStateInternal] = useState(readInitialState)
   const [syncHint, setSyncHint] = useState<string | null>(null)
   const remoteReadyRef = useRef(false)
   const remoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stateRef = useRef(state)
+
+  const effectiveToken = useMemo(
+    () => getEffectiveSyncToken(storedSyncToken),
+    [storedSyncToken],
+  )
+
+  const hasBuiltInToken = useMemo(() => Boolean(getBuiltInSyncToken()), [])
+
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   const setSyncToken = useCallback((token: string) => {
     const t = token.trim()
     saveSyncToken(t)
-    setSyncTokenState(t)
+    setStoredSyncToken(t)
     setSyncHint(null)
   }, [])
 
@@ -51,22 +73,20 @@ export function useSyncedHabitState() {
   }, [state])
 
   const pullRemote = useCallback(async () => {
-    const token = syncToken.trim()
+    const token = effectiveToken
     if (!token) return
     remoteReadyRef.current = false
     setSyncHint('Syncing…')
     try {
       const remoteRaw = await fetchRemoteHabits(token)
       setStateInternal((prev) => {
-        if (!remoteRaw || remoteRaw.trim() === '') {
+        if (!remoteRaw || !remoteRaw.trim()) {
           if (stateHasPayload(prev)) {
             void pushRemoteHabits(token, serializeHabitTrackerState(prev)).catch(() => {})
           }
           return prev
         }
-        const remote = parseHabitTrackerState(remoteRaw)
-        if (!remote) return prev
-        return pickNewer(remote, prev)
+        return mergePull(prev, remoteRaw)
       })
       setSyncHint(`Synced ${new Date().toLocaleTimeString()}`)
     } catch (e) {
@@ -74,10 +94,31 @@ export function useSyncedHabitState() {
     } finally {
       remoteReadyRef.current = true
     }
-  }, [syncToken])
+  }, [effectiveToken])
+
+  const syncNow = useCallback(async () => {
+    const token = effectiveToken
+    if (!token) {
+      setSyncHint('Sync is not configured yet.')
+      return
+    }
+    setSyncHint('Syncing…')
+    try {
+      const prev = stateRef.current
+      const remoteRaw = await fetchRemoteHabits(token)
+      const next = mergePull(prev, remoteRaw)
+      setStateInternal(next)
+      await pushRemoteHabits(token, serializeHabitTrackerState(next))
+      setSyncHint(`Synced ${new Date().toLocaleTimeString()}`)
+    } catch (e) {
+      setSyncHint(e instanceof Error ? e.message : 'Sync failed')
+    } finally {
+      remoteReadyRef.current = true
+    }
+  }, [effectiveToken])
 
   useEffect(() => {
-    if (!syncToken.trim()) {
+    if (!effectiveToken) {
       remoteReadyRef.current = false
       return
     }
@@ -85,10 +126,10 @@ export function useSyncedHabitState() {
       void pullRemote()
     }, 0)
     return () => window.clearTimeout(schedule)
-  }, [syncToken, pullRemote])
+  }, [effectiveToken, pullRemote])
 
   useEffect(() => {
-    const token = syncToken.trim()
+    const token = effectiveToken
     if (!token || !remoteReadyRef.current) return
 
     if (remoteTimer.current) clearTimeout(remoteTimer.current)
@@ -101,14 +142,16 @@ export function useSyncedHabitState() {
     return () => {
       if (remoteTimer.current) clearTimeout(remoteTimer.current)
     }
-  }, [state, syncToken])
+  }, [state, effectiveToken])
 
   return {
     state,
     setState,
-    syncToken,
+    /** Manual token (optional if `VITE_HABIT_SYNC_SECRET` is set at build time). */
     setSyncToken,
-    syncHint: syncToken.trim() ? syncHint : null,
-    pullRemote,
+    syncHint: effectiveToken ? syncHint : null,
+    syncNow,
+    canSync: Boolean(effectiveToken),
+    showManualTokenHint: !hasBuiltInToken,
   }
 }
