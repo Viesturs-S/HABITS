@@ -4,7 +4,9 @@ const KV_KEY = 'habit-dashboard:state-v1'
 const MAX_PAYLOAD = 120_000
 
 function isRedisConfigured(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+  return Boolean(url?.trim() && token?.trim())
 }
 
 async function getRemoteHabitJson(): Promise<string | null> {
